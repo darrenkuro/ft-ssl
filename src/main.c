@@ -6,19 +6,21 @@
 /*   By: dlu <dlu@student.42berlin.de>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/04 07:27:36 by dlu               #+#    #+#             */
-/*   Updated: 2025/06/22 10:51:00 by dlu              ###   ########.fr       */
+/*   Updated: 2025/12/28 13:57:42 by dlu              ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <stdio.h>
+#include "libft.h"
 
-int main (int ac, char **av)
-{
-    const int A = 0x67452301;
-    const int B = 0xEFCDAB89;
-    const int C = 0x98BADCFE;
-    const int D = 0x10325476;
-        
-    printf("%d %s", ac, *av);
-    return (0);
+static int usage(void) {
+    char const *msg = "usage: ft_ssl command [flags] [file/string]";
+    write(2, msg, ft_strlen(msg));
+    return (1);
+}
+
+int main(int ac, char **av) {
+    if (ac < 2 || !av)
+        return usage();
+    return 1;
+    // return run_cmd(ac - 1, av + 1);
 }
