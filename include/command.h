@@ -6,4 +6,6 @@ typedef struct s_command {
     int (*handler)(int ac, char **av);
 } t_command;
 
+int run_cmd(int ac, char **av) {}
+
 #endif
