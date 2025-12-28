@@ -13,8 +13,9 @@ static const uint32_t s[64] = {7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 1
                                4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
                                6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21};
 
-/* Table of constants K[i] = floor(2^32 * abs(sin(i + 1)))
-K[i] = (uint32_t)(fabs(sin(i + 1)) * (double)(1ULL << 32));
+/*
+Table of constants K[i] = floor(2^32 * abs(sin(i + 1)))
+    K[i] = (uint32_t) (fabs(sin(i + 1)) * (double)(1ULL << 32));
 */
 static const uint32_t K[64] = {
     0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
