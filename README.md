@@ -49,6 +49,8 @@
 
 - This combines 3 projects of cryptographic practices, each representing a different layer. A. `Integrity` ("has data changd"), incorporates hashing functions, such as MD5, SHA1, SHA256, it is one-way, not reversible. B. Confidentiality ("who can read this data"), uses symmetric encryption, such as DES, AES, shared key for encryption and decryption. C. Authentication ("who am i talking to and how do we share secrets"), utilizes asymmetric (public-key) cryptography; it uses the public key to encrypts and private key to decrypt.
 - Hashing function is deterministic, going from arbitary length to fixed-length. Hash map uses something simple, for instance, `h = h * 33 + c for each c`, a map would have dynamically decided amount of buckets, for on average each bucket has 1 item. Collision isn't not a concern since generally it doesn't worry about secuirty. Cryptographic hashing, however, would be much more complex, slower, and be extremely unlikely to have collisions.
+- This program has to be streaming, meaning digest and hash as you read data, and not wait for the input to finish coming in, because length is arbitary and holding them in memory is horrible design!
+- Flags as bitmask (just to practice bit operations).
 - Endianness!
 
 ---
