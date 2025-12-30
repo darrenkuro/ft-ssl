@@ -1,9 +1,30 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   md5.c                                              :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: dlu <dlu@student.42berlin.de>              +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/29 23:24:02 by dlu               #+#    #+#             */
+/*   Updated: 2025/12/30 05:16:42 by dlu              ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 // #include "libft.h"
+#include "context.h"
+#include "flags.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct s_md5_ctx {
+    uint32_t h[4];      // Internal hash states, A B C D
+    uint64_t bitlen;    // Bits processed so far (need at the end)
+    uint8_t buffer[64]; // Partial input block
+    size_t buffer_len;  // Current buffer length
+} t_md5_ctx;
 
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
@@ -28,86 +49,136 @@ static const uint32_t K[64] = {
     0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
 };
 
-void md5(const uint8_t *msg, size_t len, uint8_t digest[16]) {
-    uint32_t A = 0x67452301; // 01 23 45 67
-    uint32_t B = 0xefcdab89; // 89 ab cd ef
-    uint32_t C = 0x98badcfe; // fe dc ba 98
-    uint32_t D = 0x10325476; // 76 54 32 10
+static void md5_process_block(t_md5_ctx *ctx, const uint8_t block[64]) {
+    uint32_t a = ctx->h[0];
+    uint32_t b = ctx->h[1];
+    uint32_t c = ctx->h[2];
+    uint32_t d = ctx->h[3];
 
-    /* Padding */
-    size_t new_len = len + 1;
-    while (new_len % 64 != 56)
-        new_len++;
+    const uint32_t *M = (const uint32_t *)block;
 
-    uint8_t *buf = calloc(new_len + 8, 1);
-    memcpy(buf, msg, len);
-    buf[len] = 0x80;
+    for (uint32_t i = 0; i < 64; i++) {
+        uint32_t f, g;
 
-    uint64_t bits_len = (uint64_t)len * 8;
-    memcpy(buf + new_len, &bits_len, 8); /* little-endian */
-
-    /* Process blocks */
-    for (size_t offset = 0; offset < new_len; offset += 64) {
-        uint32_t *M = (uint32_t *)(buf + offset);
-
-        uint32_t a = A;
-        uint32_t b = B;
-        uint32_t c = C;
-        uint32_t d = D;
-
-        for (uint32_t i = 0; i < 64; i++) {
-            uint32_t f, g;
-
-            if (i < 16) {
-                f = (b & c) | (~b & d);
-                g = i;
-            } else if (i < 32) {
-                f = (d & b) | (~d & c);
-                g = (5 * i + 1) % 16;
-            } else if (i < 48) {
-                f = b ^ c ^ d;
-                g = (3 * i + 5) % 16;
-            } else {
-                f = c ^ (b | ~d);
-                g = (7 * i) % 16;
-            }
-
-            uint32_t temp = d;
-            d = c;
-            c = b;
-            b = b + LEFTROTATE(a + f + K[i] + M[g], s[i]);
-            a = temp;
+        if (i < 16) {
+            f = (b & c) | (~b & d);
+            g = i;
+        } else if (i < 32) {
+            f = (d & b) | (~d & c);
+            g = (5 * i + 1) % 16;
+        } else if (i < 48) {
+            f = b ^ c ^ d;
+            g = (3 * i + 5) % 16;
+        } else {
+            f = c ^ (b | ~d);
+            g = (7 * i) % 16;
         }
 
-        A += a;
-        B += b;
-        C += c;
-        D += d;
+        uint32_t temp = d;
+        d = c;
+        c = b;
+        b = b + LEFTROTATE(a + f + K[i] + M[g], s[i]);
+        a = temp;
     }
 
-    free(buf);
-
-    memcpy(digest, &A, 4);
-    memcpy(digest + 4, &B, 4);
-    memcpy(digest + 8, &C, 4);
-    memcpy(digest + 12, &D, 4);
+    ctx->h[0] += a;
+    ctx->h[1] += b;
+    ctx->h[2] += c;
+    ctx->h[3] += d;
 }
 
-/* ////
-int main(int argc, char **argv) {
-    uint8_t digest[16];
+static void md5_init(void *vctx) {
+    t_md5_ctx *ctx = vctx;
 
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <string>\n", argv[0]);
-        return 1;
+    ctx->h[0] = 0x67452301; // 01 23 45 67
+    ctx->h[1] = 0xefcdab89; // 89 ab cd ef
+    ctx->h[2] = 0x98badcfe; // fe dc ba 98
+    ctx->h[3] = 0x10325476; // 76 54 32 10
+
+    ctx->bitlen = 0;
+    ctx->buffer_len = 0;
+}
+
+static void md5_update(void *vctx, const uint8_t *data, size_t len) {
+    t_md5_ctx *ctx = vctx;
+
+    ctx->bitlen += (uint64_t)len * 8;
+
+    while (len > 0) {
+        size_t to_copy = 64 - ctx->buffer_len;
+        if (to_copy > len)
+            to_copy = len;
+
+        memcpy(ctx->buffer + ctx->buffer_len, data, to_copy);
+        ctx->buffer_len += to_copy;
+        data += to_copy;
+        len -= to_copy;
+
+        if (ctx->buffer_len == 64) {
+            md5_process_block(ctx, ctx->buffer);
+            ctx->buffer_len = 0;
+        }
+    }
+}
+
+static void md5_final(void *vctx, uint8_t *out) {
+    t_md5_ctx *ctx = vctx;
+
+    /* append 0x80 */
+    ctx->buffer[ctx->buffer_len++] = 0x80;
+
+    /* pad with zeros until 56 bytes */
+    if (ctx->buffer_len > 56) {
+        while (ctx->buffer_len < 64)
+            ctx->buffer[ctx->buffer_len++] = 0x00;
+        md5_process_block(ctx, ctx->buffer);
+        ctx->buffer_len = 0;
     }
 
-    md5((const uint8_t *)argv[1], strlen(argv[1]), digest);
+    while (ctx->buffer_len < 56)
+        ctx->buffer[ctx->buffer_len++] = 0x00;
+
+    /* append original length in bits (little endian) */
+    memcpy(ctx->buffer + 56, &ctx->bitlen, 8);
+    md5_process_block(ctx, ctx->buffer);
+
+    /* output digest (little endian) */
+    memcpy(out, &ctx->h[0], 4);
+    memcpy(out + 4, &ctx->h[1], 4);
+    memcpy(out + 8, &ctx->h[2], 4);
+    memcpy(out + 12, &ctx->h[3], 4);
+}
+
+static void md5_print(const uint8_t *digest, const t_global_ctx *gctx, const t_job *job) {
+    bool quiet = gctx->flags & FLAG_Q;
+    bool reverse = gctx->flags & FLAG_R;
+
+    if (!reverse && !quiet) {
+        if (job->type == I_STRING)
+            printf("MD5 (\"%s\") = ", job->input);
+        if (job->type == I_FILE)
+            printf("MD5 (%s) = ", job->input);
+        if (job->type == I_STDIN && !(gctx->flags & FLAG_P))
+            printf("(stdin) = ");
+    }
 
     for (int i = 0; i < 16; i++)
         printf("%02x", digest[i]);
-    printf("\n");
 
-    return 0;
+    if (reverse && !quiet) {
+        if (job->type == I_STRING)
+            printf(" \"%s\"", job->input);
+        if (job->type == I_FILE)
+            printf(" %s", job->input);
+    }
+
+    printf("\n");
 }
-*/ ////
+
+const t_algo g_md5_algo = {.name = "md5",
+                           .ctx_size = sizeof(t_md5_ctx),
+                           .init = md5_init,
+                           .update = md5_update,
+                           .final = md5_final,
+                           .digest_size = 16,
+                           .print = md5_print};
