@@ -9,7 +9,7 @@ INCDIR	:=	include
 LIBDIR	:=	libft
 
 # ------------------------ Files
-_SRC	:=	main.c
+_SRC	:=	main.c parser.c executor.c md5.c
 SRC		:=	$(addprefix $(SRCDIR)/,$(_SRC))
 OBJ		:=	$(addprefix $(OBJDIR)/,$(_SRC:.c=.o))
 
